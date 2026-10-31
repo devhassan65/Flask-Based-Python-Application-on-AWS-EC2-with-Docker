@@ -16,11 +16,21 @@ pipeline {
             }
         }
 
-        stage('Test') {
+        stage('Setup Python Environment') {
             steps {
                 sh '''
-                    python3 -m pip install -r requirements.txt
-                    python3 -m py_compile app.py
+                    python3 -m venv .venv
+                    .venv/bin/python -m pip install --upgrade pip
+                    .venv/bin/python -m pip install -r requirements.txt
+                '''
+            }
+        }
+
+        stage('Test Application') {
+            steps {
+                sh '''
+                    .venv/bin/python -m py_compile app.py
+                    echo "Python syntax check passed!"
                 '''
             }
         }
@@ -38,7 +48,7 @@ pipeline {
             steps {
                 withCredentials([
                     usernamePassword(
-                        credentialsId: 'Dockerhub_cred',
+                        credentialsId: 'Dockerhub-cred',
                         usernameVariable: 'DOCKER_USER',
                         passwordVariable: 'DOCKER_TOKEN'
                     )
@@ -59,11 +69,14 @@ pipeline {
 
     post {
         success {
-            echo 'Docker image pushed successfully!'
+            echo 'SUCCESS: Docker image pushed to Docker Hub!'
         }
+
         failure {
-            echo 'Pipeline failed. Check Console Output.'
+            echo 'FAILED: Check Jenkins Console Output.'
         }
     }
 }
+
+
 

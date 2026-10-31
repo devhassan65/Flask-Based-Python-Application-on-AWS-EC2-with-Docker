@@ -1,10 +1,12 @@
 
+
 pipeline {
     agent any
 
     environment {
         DOCKER_IMAGE = 'hassanzia65/flask-app'
         IMAGE_TAG = "${BUILD_NUMBER}"
+        CONTAINER_NAME = 'flask-app'
     }
 
     stages {
@@ -30,7 +32,7 @@ pipeline {
             steps {
                 sh '''
                     .venv/bin/python -m py_compile app.py
-                    echo "Python syntax check passed!"
+                    echo "Application test passed!"
                 '''
             }
         }
@@ -65,11 +67,38 @@ pipeline {
                 }
             }
         }
+
+        stage('Deploy to EC2') {
+            steps {
+                sh '''
+                    echo "Stopping old container..."
+
+                    docker stop $CONTAINER_NAME || true
+                    docker rm $CONTAINER_NAME || true
+
+                    echo "Pulling latest image..."
+
+                    docker pull $DOCKER_IMAGE:latest
+
+                    echo "Starting new container..."
+
+                    docker run -d \
+                        --name $CONTAINER_NAME \
+                        -p 8000:8000 \
+                        --restart unless-stopped \
+                        $DOCKER_IMAGE:latest
+
+                    echo "Deployment completed!"
+
+                    docker ps
+                '''
+            }
+        }
     }
 
     post {
         success {
-            echo 'SUCCESS: Docker image pushed to Docker Hub!'
+            echo 'SUCCESS: Application deployed on EC2!'
         }
 
         failure {
